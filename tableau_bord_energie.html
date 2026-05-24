@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tableau de bord énergétique — O. Alves Barros</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sun: #F5A623;
+  --sun-pale: #FFF8EC;
+  --green: #1D9E75;
+  --green-pale: #E5F7F1;
+  --blue: #2D6BE4;
+  --blue-pale: #EBF1FD;
+  --coral: #E05C3A;
+  --coral-pale: #FDF0EC;
+  --purple: #7B5EA7;
+  --purple-pale: #F3EEFF;
+  --ink: #1A1917;
+  --ink-2: #3D3C39;
+  --ink-3: #6B6A66;
+  --paper: #FAFAF7;
+  --rule: #E8E6DF;
+  --card: #FFFFFF;
+  --radius: 12px;
+  --shadow: 0 2px 12px rgba(26,25,23,0.07), 0 1px 3px rgba(26,25,23,0.05);
+  --shadow-lg: 0 8px 32px rgba(26,25,23,0.10), 0 2px 8px rgba(26,25,23,0.06);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ——— NAV ——— */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(250,250,247,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--rule);
+  padding: 0 2rem;
+  display: flex; align-items: center; gap: 2rem;
+  height: 60px;
+}
+.nav-logo {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.1rem; color: var(--ink);
+  white-space: nowrap;
+}
+.nav-logo span { color: var(--sun); }
+.nav-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+.nav-link {
+  font-size: 0.78rem; font-weight: 500; color: var(--ink-3);
+  text-decoration: none; padding: 0.3rem 0.75rem;
+  border-radius: 20px; transition: all .2s;
+  cursor: pointer; border: none; background: none;
+}
+.nav-link:hover, .nav-link.active { background: var(--ink); color: white; }
+.nav-badge {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem; color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* ——— SECTIONS ——— */
+.section { display: none; padding: 2rem; max-width: 1100px; margin: 0 auto; }
+.section.active { display: block; animation: fadeIn .35s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+/* ——— HERO ——— */
+.hero {
+  background: linear-gradient(135deg, #1A1917 0%, #2D3748 100%);
+  border-radius: 20px; padding: 3rem; margin-bottom: 2rem; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '☀️'; font-size: 8rem; position: absolute; right: 2rem; top: 50%;
+  transform: translateY(-50%); opacity: 0.12; pointer-events: none;
+}
+.hero-label {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--sun); margin-bottom: 0.75rem;
+}
+.hero h1 {
+  font-family: 'DM Serif Display', serif; font-size: 2.2rem; color: white;
+  line-height: 1.15; margin-bottom: 0.5rem;
+}
+.hero p { color: rgba(255,255,255,0.55); font-size: 0.9rem; max-width: 480px; }
+.hero-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.5rem; }
+.chip {
+  font-size: 0.72rem; font-weight: 500; padding: 0.3rem 0.75rem;
+  border-radius: 20px; border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.7);
+}
+
+/* ——— KPI GRID ——— */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.kpi-card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 1.25rem; box-shadow: var(--shadow);
+  border: 1px solid var(--rule); position: relative; overflow: hidden;
+  transition: transform .2s, box-shadow .2s;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.kpi-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, var(--blue));
+}
+.kpi-label { font-size: 0.72rem; font-weight: 500; color: var(--ink-3); letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+.kpi-value {
+  font-family: 'DM Serif Display', serif; font-size: 1.9rem; color: var(--ink);
+  line-height: 1; display: flex; align-items: baseline; gap: 0.3rem;
+}
+.kpi-unit { font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; color: var(--ink-3); }
+.kpi-sub { font-size: 0.72rem; color: var(--ink-3); margin-top: 0.4rem; }
+
+/* ——— SECTION HEADERS ——— */
+.sec-header { margin-bottom: 1.5rem; }
+.sec-header h2 {
+  font-family: 'DM Serif Display', serif; font-size: 1.6rem; color: var(--ink);
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.sec-header h2 .icon { font-size: 1.2rem; }
+.sec-header p { color: var(--ink-3); font-size: 0.88rem; margin-top: 0.3rem; max-width: 640px; }
+
+/* ——— CARDS ——— */
+.card {
+  background: var(--card); border-radius: var(--radius); padding: 1.5rem;
+  box-shadow: var(--shadow); border: 1px solid var(--rule); margin-bottom: 1.5rem;
+}
+.card-title {
+  font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 1rem;
+}
+.chart-wrap { position: relative; }
+
+/* ——— TABS ——— */
+.tabs { display: flex; gap: 0.3rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.tab-btn {
+  font-size: 0.78rem; font-weight: 500; padding: 0.4rem 0.9rem;
+  border-radius: 20px; border: 1.5px solid var(--rule);
+  background: none; color: var(--ink-3); cursor: pointer; transition: all .18s;
+}
+.tab-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+.tab-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
+
+/* ——— DATA TABLE ——— */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.data-table th {
+  text-align: left; font-weight: 600; font-size: 0.72rem; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-3); padding: 0.6rem 1rem;
+  background: var(--paper); border-bottom: 1px solid var(--rule);
+}
+.data-table td { padding: 0.65rem 1rem; border-bottom: 1px solid var(--rule); }
+.data-table tr:last-child td { border-bottom: none; font-weight: 600; background: var(--paper); }
+.data-table tr:hover td { background: var(--paper); }
+.pill {
+  display: inline-block; font-size: 0.72rem; font-weight: 600;
+  padding: 0.15rem 0.5rem; border-radius: 4px;
+}
+.pill-green { background: var(--green-pale); color: var(--green); }
+.pill-red { background: var(--coral-pale); color: var(--coral); }
+.pill-blue { background: var(--blue-pale); color: var(--blue); }
+.pill-amber { background: var(--sun-pale); color: #C17B0A; }
+
+/* ——— ALERT BOXES ——— */
+.alert {
+  border-radius: var(--radius); padding: 1rem 1.25rem;
+  font-size: 0.88rem; line-height: 1.6; margin-bottom: 1rem;
+  border-left: 4px solid;
+}
+.alert-green { background: var(--green-pale); border-color: var(--green); }
+.alert-blue { background: var(--blue-pale); border-color: var(--blue); }
+.alert-amber { background: var(--sun-pale); border-color: var(--sun); }
+.alert-red { background: var(--coral-pale); border-color: var(--coral); }
+.alert-purple { background: var(--purple-pale); border-color: var(--purple); }
+.alert strong { font-weight: 600; }
+
+/* ——— 2-COL ——— */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media(max-width:640px){ .two-col { grid-template-columns:1fr; } }
+
+/* ——— TIMELINE / RECO ——— */
+.reco-list { display: flex; flex-direction: column; gap: 1rem; }
+.reco-item {
+  display: flex; gap: 1rem; align-items: flex-start;
+  padding: 1rem 1.25rem; background: var(--card);
+  border-radius: var(--radius); border: 1px solid var(--rule);
+  box-shadow: var(--shadow); transition: transform .2s;
+}
+.reco-item:hover { transform: translateX(4px); }
+.reco-num {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700; color: white;
+}
+.reco-body { flex: 1; }
+.reco-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; }
+.reco-text { font-size: 0.82rem; color: var(--ink-3); line-height: 1.55; }
+.reco-tag {
+  display: inline-block; font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.15rem 0.5rem; border-radius: 4px; margin-bottom: 0.3rem;
+}
+
+/* ——— SLIDER ——— */
+.slider-row { display: flex; align-items: center; gap: 1rem; margin: 0.5rem 0 1rem; }
+.slider-row label { font-size: 0.8rem; color: var(--ink-3); min-width: 140px; }
+input[type=range] {
+  flex: 1; accent-color: var(--green); height: 4px; cursor: pointer;
+}
+.slider-val {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+  font-weight: 500; color: var(--ink); min-width: 80px; text-align: right;
+}
+
+/* ——— FOOTER ——— */
+footer {
+  text-align: center; padding: 2rem; font-size: 0.75rem; color: var(--ink-3);
+  border-top: 1px solid var(--rule); margin-top: 2rem;
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">Énergie <span>●</span> Soumagne</div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="showSection('accueil',this)">Accueil</button>
+    <button class="nav-link" onclick="showSection('solaire',this)">Solaire</button>
+    <button class="nav-link" onclick="showSection('batterie',this)">Batterie</button>
+    <button class="nav-link" onclick="showSection('ve',this)">Véhicule</button>
+    <button class="nav-link" onclick="showSection('contrats',this)">Contrats</button>
+    <button class="nav-link" onclick="showSection('simulateur',this)">Simulateur</button>
+    <button class="nav-link" onclick="showSection('recommandations',this)">Recommandations</button>
+  </div>
+  <div class="nav-badge">Sept 2025 → Mai 2026 · 261 jours</div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- ACCUEIL                                                       -->
+<!-- ============================================================ -->
+<div id="accueil" class="section active">
+  <div class="hero">
+    <div class="hero-label">Tableau de bord énergétique</div>
+    <h1>M. Olivier Alves Barros<br>Rue de la Paix 33, Soumagne</h1>
+    <p>Analyse complète de votre installation photovoltaïque, batterie, contrat énergie et véhicule électrique — données réelles 261 jours.</p>
+    <div class="hero-chips">
+      <div class="chip">8 × 445 Wc = 3,56 kWc</div>
+      <div class="chip">Enphase IQ8AC + IQ5P</div>
+      <div class="chip">RESA (Tecteo)</div>
+      <div class="chip">Tesla Model 3</div>
+      <div class="chip">Gaz de ville (chauffage)</div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent:var(--sun)">
+      <div class="kpi-label">Production solaire</div>
+      <div class="kpi-value">2 290<span class="kpi-unit">kWh</span></div>
+      <div class="kpi-sub">8,77 kWh/j · 261 jours mesurés</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--blue)">
+      <div class="kpi-label">Consommation totale</div>
+      <div class="kpi-value">4 207<span class="kpi-unit">kWh</span></div>
+      <div class="kpi-sub">16,1 kWh/j (incl. Tesla intensive)</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--green)">
+      <div class="kpi-label">Autoconsommation</div>
+      <div class="kpi-value">86,5<span class="kpi-unit">%</span></div>
+      <div class="kpi-sub">de la production utilisée sur place</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--green)">
+      <div class="kpi-label">Bénéfice solaire</div>
+      <div class="kpi-value">643<span class="kpi-unit">€</span></div>
+      <div class="kpi-sub">sur 261 jours · ~800 €/an projeté</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--purple)">
+      <div class="kpi-label">Rendement batterie</div>
+      <div class="kpi-value">84,2<span class="kpi-unit">%</span></div>
+      <div class="kpi-sub">après Power Match (+3,5 pts)</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--coral)">
+      <div class="kpi-label">Soutirage réseau</div>
+      <div class="kpi-value">2 227<span class="kpi-unit">kWh</span></div>
+      <div class="kpi-sub">52,9% de la consommation</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--sun)">
+      <div class="kpi-label">Économies VE</div>
+      <div class="kpi-value">1 067<span class="kpi-unit">€/an</span></div>
+      <div class="kpi-sub">vs Golf 7 · 12 500 km · 1,97€/L</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--green)">
+      <div class="kpi-label">Total économies</div>
+      <div class="kpi-value">2 490<span class="kpi-unit">€/an</span></div>
+      <div class="kpi-sub">solaire + VE (hors entretien)</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Répartition de la production (261 j)</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="donutProd"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Flux énergétique annuel estimé</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="barFlux"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SOLAIRE                                                       -->
+<!-- ============================================================ -->
+<div id="solaire" class="section">
+  <div class="sec-header">
+    <h2><span class="icon">☀️</span> Bilan solaire</h2>
+    <p>Données réelles sept. 2025 – mai 2026. Chauffage et eau chaude au gaz — aucune saisonnalité électrique liée au chauffage.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchChart('solar','bilan',this)">Bilan mensuel</button>
+    <button class="tab-btn" onclick="switchChart('solar','taux',this)">Taux autoconsommation</button>
+    <button class="tab-btn" onclick="switchChart('solar','solde',this)">Solde réseau</button>
+    <button class="tab-btn" onclick="switchChart('solar','conso',this)">Décomposition conso</button>
+  </div>
+  <div class="card">
+    <div class="chart-wrap" style="height:300px"><canvas id="solarChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Tableau mensuel détaillé</div>
+    <div style="overflow-x:auto">
+    <table class="data-table">
+      <thead><tr><th>Mois</th><th>Prod.</th><th>Conso.</th><th>Autoconso.</th><th>Taux AC</th><th>Injection</th><th>Soutirage</th></tr></thead>
+      <tbody id="solarTableBody"></tbody>
+    </table>
+    </div>
+  </div>
+  <div class="alert alert-green">
+    <strong>Point clé :</strong> le taux d'autoconsommation global de <strong>86,5%</strong> est excellent. Un kWh autoconsommé vaut ~12× plus qu'un kWh injecté (0,38 € évité vs 0,026 € reçu). Maximiser l'autoconsommation est la priorité absolue.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BATTERIE                                                      -->
+<!-- ============================================================ -->
+<div id="batterie" class="section">
+  <div class="sec-header">
+    <h2><span class="icon">🔋</span> Batterie Enphase IQ5P</h2>
+    <p>998 kWh chargés · 821 kWh déchargés · rendement global 82,2% → 84,2% après Power Match.</p>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Rendement hebdomadaire & Power Match</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="batWeekly"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Rendement selon puissance de décharge</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="batPower"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Profil horaire moyen (charge / décharge)</div>
+    <div class="chart-wrap" style="height:240px"><canvas id="batHourly"></canvas></div>
+  </div>
+  <div class="two-col">
+    <div class="alert alert-purple">
+      <strong>Power Match (+3,5 pts depuis avril 2026) :</strong> concentre les décharges sur les périodes de forte demande, exploitant le meilleur rendement à puissance élevée. Pics désormais à 89,3% vs 85,7% avant.
+    </div>
+    <div class="alert alert-blue">
+      <strong>Résultat contre-intuitif :</strong> l'IQ5P est plus efficace à <em>forte</em> puissance (85,5% à 700-1200W vs 72,4% à &lt;200W). Les pertes fixes des micro-onduleurs sont diluées sur un flux plus important.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VE                                                            -->
+<!-- ============================================================ -->
+<div id="ve" class="section">
+  <div class="sec-header">
+    <h2><span class="icon">⚡</span> Véhicule électrique</h2>
+    <p>Tesla Model 3 (16/12/2025) — 15 kWh/100 km — usage cible 12 500 km/an (retour au kilométrage Golf).</p>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent:var(--green)">
+      <div class="kpi-label">Économie énergie</div>
+      <div class="kpi-value">1 067<span class="kpi-unit">€/an</span></div>
+      <div class="kpi-sub">vs Golf 7 à 1,971 €/L</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--blue)">
+      <div class="kpi-label">Coût Tesla au km</div>
+      <div class="kpi-value">3,3<span class="kpi-unit">c€</span></div>
+      <div class="kpi-sub">vs 9,5 c€/km Golf 7</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--green)">
+      <div class="kpi-label">Réduction CO₂</div>
+      <div class="kpi-value">−1,5<span class="kpi-unit">t/an</span></div>
+      <div class="kpi-sub">−86% vs Golf 7 essence</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--coral)">
+      <div class="kpi-label">Superchargeurs</div>
+      <div class="kpi-value">293<span class="kpi-unit">€/an</span></div>
+      <div class="kpi-sub">55% recharge externe (à optimiser)</div>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Répartition recharge VE</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="vePie"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Économie selon prix essence</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="veEssence"></canvas></div>
+    </div>
+  </div>
+  <div class="alert alert-amber">
+    <strong>Levier principal :</strong> 55% de la recharge se fait aux Superchargeurs de Maastricht (~293 €/an). En été, recharger à domicile sur le surplus solaire (11h-17h = heures creuses depuis jan 2026) est quasi <strong>gratuit</strong>. C'est votre plus grand levier d'économie immédiat.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- CONTRATS                                                      -->
+<!-- ============================================================ -->
+<div id="contrats" class="section">
+  <div class="sec-header">
+    <h2><span class="icon">📄</span> Comparaison des contrats</h2>
+    <p>Votre réduction ENGIE expire le <strong>20/07/2026</strong>. Trois offres comparées tous frais inclus (RESA, taxes, accises, énergie verte).</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Coût net annuel estimé (tous frais inclus, RESA)</div>
+    <div class="chart-wrap" style="height:280px"><canvas id="contratChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Comparaison sur 2 ans (durée du contrat Luminus)</div>
+    <div class="chart-wrap" style="height:240px"><canvas id="contrat2ans"></canvas></div>
+  </div>
+
+  <div style="overflow-x:auto">
+  <table class="data-table">
+    <thead><tr><th>Critère</th><th>Easy Fixe (réduction)</th><th>Easy Fixe (reconduit)</th><th>Empower Fixe</th><th>Luminus MaxxFix</th></tr></thead>
+    <tbody>
+      <tr><td>Durée</td><td>1 an</td><td>1 an</td><td>Indéterminée</td><td>2 ans</td></tr>
+      <tr><td>Prix garanti</td><td>1 an ✓</td><td>1 an</td><td>1 an</td><td>1 an (sur 2 ans !)</td></tr>
+      <tr><td>Énergie HP (c€/kWh)</td><td>12,25*</td><td>18,10</td><td>17,74</td><td>19,96 → 17,35 (-13%)</td></tr>
+      <tr><td>Énergie HC (c€/kWh)</td><td>8,51*</td><td>14,36</td><td>12,97</td><td>14,92 → 12,98 (-13%)</td></tr>
+      <tr><td>Redevance fixe</td><td>69 €/an</td><td>69 €/an</td><td>90 €/an</td><td>65 €/an</td></tr>
+      <tr><td>Tarif injection</td><td>2,627 c€ fixe</td><td>2,627 c€ fixe</td><td>2,641 c€ fixe</td><td>Variable ~3,16-3,68 c€</td></tr>
+      <tr><td>Récompense VE</td><td>—</td><td>—</td><td>1,5 c€/kWh ✓</td><td>—</td></tr>
+      <tr><td>Coût net an 1</td><td><span class="pill pill-green">~976 €</span></td><td><span class="pill pill-red">~1 130 €</span></td><td><span class="pill pill-blue">~1 088 €</span></td><td><span class="pill pill-green">~1 012 €</span></td></tr>
+      <tr><td><strong>Total 2 ans</strong></td><td>—</td><td><strong>~2 260 €</strong></td><td><strong>~2 176 €</strong></td><td><strong>~2 160 €</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:0.75rem;color:var(--ink-3);margin-top:0.5rem">(*) Prix après réduction de bienvenue ENGIE, valable jusqu'au 20/07/2026.</p>
+
+  <div class="two-col" style="margin-top:1rem">
+    <div class="alert alert-green">
+      <strong>Luminus MaxxFix</strong> est légèrement le moins cher sur 2 ans (~2 160 €) grâce à la promo an 1 et un tarif d'injection variable (Belpex ~3,16–3,68 c€ vs 2,64 c€ ENGIE). <strong>Attention :</strong> engagement 2 ans, prix an 2 non garanti.
+    </div>
+    <div class="alert alert-blue">
+      <strong>Empower Fixe</strong> quasi équivalent (+16 € sur 2 ans), plus souple (résiliable à tout moment), récompense VE 1,5 c€/kWh intéressante si vous rechargez davantage à domicile.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SIMULATEUR ROI                                                -->
+<!-- ============================================================ -->
+<div id="simulateur" class="section">
+  <div class="sec-header">
+    <h2><span class="icon">🧮</span> Simulateur ROI interactif</h2>
+    <p>Ajustez les paramètres pour voir l'impact sur vos économies et le retour sur investissement.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Paramètres de simulation</div>
+    <div class="slider-row">
+      <label>Kilométrage VE/an</label>
+      <input type="range" id="slKm" min="5000" max="35000" step="500" value="12500" oninput="updateSim()">
+      <span class="slider-val" id="vKm">12 500 km</span>
+    </div>
+    <div class="slider-row">
+      <label>Prix essence (€/L)</label>
+      <input type="range" id="slEssence" min="1.50" max="2.80" step="0.01" value="1.971" oninput="updateSim()">
+      <span class="slider-val" id="vEssence">1,971 €/L</span>
+    </div>
+    <div class="slider-row">
+      <label>Inflation électricité (%/an)</label>
+      <input type="range" id="slInflation" min="1" max="7" step="0.5" value="3.5" oninput="updateSim()">
+      <span class="slider-val" id="vInflation">3,5%/an</span>
+    </div>
+    <div class="slider-row">
+      <label>Recharge maison (%)</label>
+      <input type="range" id="slMaison" min="20" max="100" step="5" value="45" oninput="updateSim()">
+      <span class="slider-val" id="vMaison">45%</span>
+    </div>
+  </div>
+
+  <div class="kpi-grid" id="simKpis"></div>
+
+  <div class="card">
+    <div class="card-title">Projection des économies sur 20 ans</div>
+    <div class="chart-wrap" style="height:300px"><canvas id="simChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- RECOMMANDATIONS                                               -->
+<!-- ============================================================ -->
+<div id="recommandations" class="section">
+  <div class="sec-header">
+    <h2><span class="icon">🎯</span> Recommandations</h2>
+    <p>Par ordre de priorité, basées sur vos données réelles.</p>
+  </div>
+
+  <div class="reco-list">
+    <div class="reco-item">
+      <div class="reco-num" style="background:var(--coral)">1</div>
+      <div class="reco-body">
+        <div class="reco-tag" style="background:var(--coral-pale);color:var(--coral)">Action avant 20/07/2026</div>
+        <div class="reco-title">Choisir Luminus MaxxFix ou ENGIE Empower</div>
+        <div class="reco-text">Votre réduction ENGIE expire. <strong>Luminus</strong> est légèrement moins cher sur 2 ans (2 160 € vs 2 176 €) avec un tarif d'injection variable Belpex avantageux. <strong>Empower</strong> offre plus de souplesse et la récompense recharge VE. Les deux valent mieux que l'Easy reconduit au plein tarif (~2 260 €).</div>
+      </div>
+    </div>
+    <div class="reco-item">
+      <div class="reco-num" style="background:var(--coral)">2</div>
+      <div class="reco-body">
+        <div class="reco-tag" style="background:var(--coral-pale);color:var(--coral)">⚠️ Ne pas faire</div>
+        <div class="reco-title">Ne PAS surdimensionner l'installation solaire</div>
+        <div class="reco-text">Avec 12 500 km/an, votre installation couvre déjà <strong>86%</strong> des besoins. Ajouter +4 panneaux + batterie vous porterait à <strong>112% de couverture</strong> : vous produiriez un surplus revendu à seulement 2,6 c€/kWh. ROI &gt;11 ans — un mauvais usage du capital dans cette configuration.</div>
+      </div>
+    </div>
+    <div class="reco-item">
+      <div class="reco-num" style="background:var(--sun)" style="color:white">3</div>
+      <div class="reco-body">
+        <div class="reco-tag" style="background:var(--sun-pale);color:#C17B0A">Gratuit · action immédiate</div>
+        <div class="reco-title">Maximiser la recharge à domicile</div>
+        <div class="reco-text">55% de votre recharge se fait aux Superchargeurs de Maastricht (~293 €/an). En été, recharger à domicile sur le surplus solaire (11h-17h = heures creuses) est quasi gratuit. Déplacez ne serait-ce que 500 kWh/an = +~140 €/an sans aucun investissement.</div>
+      </div>
+    </div>
+    <div class="reco-item">
+      <div class="reco-num" style="background:var(--blue)">4</div>
+      <div class="reco-body">
+        <div class="reco-tag" style="background:var(--blue-pale);color:var(--blue)">Moyen terme · ROI ~6,7 ans</div>
+        <div class="reco-title">Borne de recharge intelligente (Zappi, ~1 200 €)</div>
+        <div class="reco-text">Compatible avec votre IQ Gateway Enphase. Capte automatiquement le surplus solaire pour recharger la Tesla (vendredis + weekends — contraintes de présence). Gain estimé : ~179 €/an. Note : uniquement 37% du surplus captable vu vos horaires de semaine.</div>
+      </div>
+    </div>
+    <div class="reco-item">
+      <div class="reco-num" style="background:var(--green)">5</div>
+      <div class="reco-body">
+        <div class="reco-tag" style="background:var(--green-pale);color:var(--green)">Dans 1 an · après données été</div>
+        <div class="reco-title">Réévaluer l'extension une fois l'été mesuré</div>
+        <div class="reco-text">Attendez d'avoir un cycle annuel complet (premier été de données) et votre kilométrage stabilisé à ~12 500 km/an. Vous verrez exactement combien de surplus part en injection. À ce moment, un petit ajout de stockage (Zendure 8 kWh à 2 300 €) pourra être justifié pour réduire le soutirage hivernal.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:2rem">
+    <div class="card-title">Synthèse financière</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="recoChart"></canvas></div>
+  </div>
+</div>
+
+<footer>
+  Données réelles sept. 2025 – mai 2026 · Prix électricité ENGIE/Luminus mai 2026 · SP95 E10 : 1,971 €/L (SPF Économie 13/05/2026) · Inflation élec. +3,5%/an (CAGR CWaPE 2015-2025) · Rapport non contractuel
+</footer>
+
+<script>
+// ——————————————————————————————————————————
+// DATA
+// ——————————————————————————————————————————
+const months = ['Sept 25','Oct 25','Nov 25','Déc 25','Jan 26','Fév 26','Mar 26','Avr 26','Mai 26'];
+const prod     = [351.2, 164.6, 165.5, 131.3, 106.7, 192.3, 419.4, 532.2, 226.5];
+const conso    = [276.8, 303.8, 319.6, 424.8, 727.2, 581.4, 650.6, 575.2, 348.0];
+const ac       = [250.3, 159.0, 159.0, 128.7, 102.4, 173.8, 377.6, 418.0, 211.4];
+const inj      = [100.9,   5.5,   6.5,   2.6,   4.3,  18.5,  41.8, 114.2,  15.1];
+const sout     = [ 26.5, 144.8, 160.6, 296.1, 624.8, 407.6, 272.9, 157.2, 136.6];
+
+const C = (id) => document.getElementById(id).getContext('2d');
+const isDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
+const grid = 'rgba(26,25,23,0.07)';
+const txt  = '#6B6A66';
+
+const baseOpts = (yFmt) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+  scales: {
+    x: { ticks: { color: txt, font: {size:10}, maxRotation:0 }, grid: { color: grid } },
+    y: { ticks: { color: txt, font: {size:10}, callback: yFmt||undefined }, grid: { color: grid } }
+  }
+});
+
+// ——— NAVIGATION ———
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  // lazy-init charts
+  if (!window.chartsInited) window.chartsInited = {};
+  if (!window.chartsInited[id]) { initCharts(id); window.chartsInited[id]=true; }
+}
+
+// ——— INIT CHARTS by section ———
+let solarChartObj = null;
+function initCharts(section) {
+  if (section === 'accueil') {
+    new Chart(C('donutProd'), {
+      type:'doughnut',
+      data: { labels:['Autoconsommée','Injectée'], datasets:[{data:[1980,309],
+        backgroundColor:['#1D9E75','#F5A623'], borderWidth:0, hoverOffset:8}]},
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+        plugins:{ legend:{ position:'bottom', labels:{ color:txt, font:{size:11}, padding:16 } },
+          tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.parsed} kWh` } } } }
+    });
+    new Chart(C('barFlux'), {
+      type:'bar', data:{ labels:['Production','Autoconso.','Injection','Soutirage'],
+        datasets:[{data:[3754,3856,454,1072], backgroundColor:['#F5A623','#1D9E75','#2D6BE4','#E05C3A'],
+          borderRadius:6}]},
+      options:{ ...baseOpts(), plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:txt,font:{size:10}},grid:{color:grid}},
+                 y:{ticks:{color:txt,font:{size:10}},grid:{color:grid}} } }
+    });
+  }
+
+  if (section === 'solaire') {
+    buildSolarChart('bilan');
+    buildSolarTable();
+  }
+
+  if (section === 'batterie') {
+    const wks = [79.2,84.3,85.1,82.2,83.1,76.6,78.1,78.4,80.7,82.0,83.3,83.3,
+                 70.8,80.5,81.8,81.7,82.3,78.0,78.9,80.6,79.9,76.8,77.5,85.7,
+                 77.9,83.0,81.5,84.1,85.3,79.5,83.5,77.1,88.2,82.2,89.3,82.7,87.0,75.9];
+    const wLabels = wks.map((_,i)=>`S${i+1}`);
+    const colors = wks.map((_,i)=> i>=32 ? '#7B5EA7' : '#1D9E75');
+    new Chart(C('batWeekly'), {
+      type:'line', data:{ labels:wLabels,
+        datasets:[{ data:wks, borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.08)',
+          borderWidth:2, pointRadius:2, pointBackgroundColor:colors, fill:true, tension:0.3 }]},
+      options:{ ...baseOpts(v=>v+'%'), plugins:{
+        annotation:{annotations:{line:{type:'line',xMin:32,xMax:32,borderColor:'#7B5EA7',borderWidth:1.5,borderDash:[4,3]}}},
+        legend:{display:false} }, scales:{
+          x:{ticks:{color:txt,font:{size:9},maxRotation:45,autoSkip:true,maxTicksLimit:20},grid:{color:grid}},
+          y:{min:65,max:95,ticks:{color:txt,callback:v=>v+'%'},grid:{color:grid}} } }
+    });
+    new Chart(C('batPower'), {
+      type:'bar', data:{ labels:['< 200W\n(0,03C)','200-400W\n(0,06C)','400-700W\n(0,10C)','700-1200W\n(0,16C)'],
+        datasets:[{ data:[72.4,76.0,81.1,85.5],
+          backgroundColor:['#B4D4F5','#7FB3EE','#378ADD','#1A5FA8'], borderRadius:6 }]},
+      options:{ ...baseOpts(v=>v+'%'), scales:{
+        x:{ticks:{color:txt,font:{size:9}},grid:{color:grid}},
+        y:{min:65,max:92,ticks:{color:txt,callback:v=>v+'%'},grid:{color:grid}} } }
+    });
+    const hrs=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];
+    const chg=[7,8,9,7,7,7,7,7,47,272,468,624,792,717,311,187,560,490,378,53,0,0,0,6];
+    const dch=[1,2,4,1,1,0,1,1,2,16,5,0,52,130,78,234,498,160,58,371,627,424,314,139];
+    new Chart(C('batHourly'), { type:'bar',
+      data:{ labels:hrs.map(h=>h+'h'), datasets:[
+        {label:'Charge (Wh)',data:chg,backgroundColor:'#BA7517',borderRadius:3},
+        {label:'Décharge (Wh)',data:dch,backgroundColor:'#1D9E75',borderRadius:3}]},
+      options:{ ...baseOpts(), plugins:{legend:{display:true,position:'top',
+        labels:{color:txt,font:{size:10},padding:12}}},
+        scales:{ x:{ticks:{color:txt,font:{size:9},maxRotation:0},grid:{color:grid}},
+                 y:{ticks:{color:txt,font:{size:10}},grid:{color:grid}} } }
+    });
+  }
+
+  if (section === 've') {
+    new Chart(C('vePie'), { type:'doughnut',
+      data:{ labels:['Maison (45%)\n844 kWh/an','Superchargeurs (55%)\n1 031 kWh/an'],
+        datasets:[{data:[45,55],backgroundColor:['#1D9E75','#B4B2A9'],borderWidth:0,hoverOffset:8}]},
+      options:{ responsive:true,maintainAspectRatio:false,cutout:'65%',
+        plugins:{legend:{position:'bottom',labels:{color:txt,font:{size:10},padding:12}}}}
+    });
+    const prices=[1.75,1.971,2.045,2.30,2.50];
+    const ecos=prices.map(p=>Math.round(12500*6/100*p - 411));
+    new Chart(C('veEssence'), { type:'bar',
+      data:{ labels:prices.map(p=>p.toFixed(2)+' €/L'),
+        datasets:[{data:ecos,backgroundColor:prices.map((_,i)=>i===1?'#1D9E75':i===4?'#E05C3A':'#B4B2A9'),borderRadius:6}]},
+      options:{ ...baseOpts(), scales:{
+        x:{ticks:{color:txt,font:{size:10}},grid:{color:grid}},
+        y:{ticks:{color:txt,font:{size:10},callback:v=>v+'€'},grid:{color:grid}} } }
+    });
+  }
+
+  if (section === 'contrats') {
+    const labels=['Easy Fixe\n(réduction)','Easy Fixe\n(reconduit)','Empower Fixe','Luminus an1','Luminus an2'];
+    const vals=[976,1130,1088,1012,1147];
+    const bcolors=['#1D9E75','#E05C3A','#2D6BE4','#7B5EA7','#B09FCC'];
+    new Chart(C('contratChart'), { type:'bar',
+      data:{ labels, datasets:[{data:vals, backgroundColor:bcolors, borderRadius:6}]},
+      options:{ indexAxis:'y', ...baseOpts(), scales:{
+        x:{ticks:{color:txt,font:{size:10},callback:v=>v+'€'},grid:{color:grid}},
+        y:{ticks:{color:txt,font:{size:10}},grid:{color:grid}} } }
+    });
+    new Chart(C('contrat2ans'), { type:'bar',
+      data:{ labels:['ENGIE Easy (reconduit)','ENGIE Empower','Luminus MaxxFix'],
+        datasets:[
+          {label:'Année 1',data:[1130,1088,1012],backgroundColor:['#E05C3A','#2D6BE4','#7B5EA7'],borderRadius:4},
+          {label:'Année 2',data:[1130,1088,1147],backgroundColor:['rgba(224,92,58,.45)','rgba(45,107,228,.45)','rgba(123,94,167,.45)'],borderRadius:4}
+        ]},
+      options:{ ...baseOpts(), plugins:{
+        legend:{display:true,position:'top',labels:{color:txt,font:{size:10},padding:12}}},
+        scales:{
+          x:{ticks:{color:txt,font:{size:10}},grid:{color:grid}},
+          y:{ticks:{color:txt,font:{size:10},callback:v=>v+'€'},grid:{color:grid}} } }
+    });
+  }
+
+  if (section === 'simulateur') { updateSim(); }
+
+  if (section === 'recommandations') {
+    new Chart(C('recoChart'), { type:'bar',
+      data:{ labels:['Solaire actuel','VE énergie\nvs Golf 7','TOTAL\néconomies'],
+        datasets:[{data:[1423,1067,2490], backgroundColor:['#2D6BE4','#F5A623','#1D9E75'], borderRadius:8}]},
+      options:{ ...baseOpts(), scales:{
+        x:{ticks:{color:txt,font:{size:10.5}},grid:{color:grid}},
+        y:{ticks:{color:txt,font:{size:10},callback:v=>v+'€'},grid:{color:grid}} } }
+    });
+  }
+}
+
+// ——— SOLAR CHART ———
+function buildSolarChart(type) {
+  const ctx = C('solarChart');
+  if (window._solarChart) { window._solarChart.destroy(); }
+  let datasets, opts = baseOpts();
+  if (type==='bilan') {
+    datasets=[
+      {label:'Production',data:prod,backgroundColor:'#F5A623',borderRadius:3},
+      {label:'Consommation',data:conso,backgroundColor:'#B4B2A9',borderRadius:3},
+      {label:'Autoconsommation',data:ac,backgroundColor:'#1D9E75',borderRadius:3}
+    ];
+    opts.plugins = { legend:{display:true,position:'top',labels:{color:txt,font:{size:10},padding:12}},
+      tooltip:{mode:'index',intersect:false} };
+  } else if (type==='taux') {
+    const tauxAC = ac.map((a,i)=>+(a/prod[i]*100).toFixed(1));
+    const tauxCouv = ac.map((a,i)=>+(a/conso[i]*100).toFixed(1));
+    datasets=[
+      {label:'Taux autoconsommation (%)',data:tauxAC,backgroundColor:'#1D9E75',borderRadius:3},
+      {label:'Taux couverture (%)',data:tauxCouv,backgroundColor:'rgba(45,107,228,.45)',borderRadius:3}
+    ];
+    opts.scales.y.max=100;
+    opts.scales.y.ticks.callback=v=>v+'%';
+    opts.plugins={legend:{display:true,position:'top',labels:{color:txt,font:{size:10},padding:12}},
+      tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y.toFixed(1)+'%'}}};
+  } else if (type==='solde') {
+    datasets=[
+      {label:'Soutirage (kWh)',data:sout,backgroundColor:'#E05C3A',borderRadius:3},
+      {label:'Injection (kWh)',data:inj,backgroundColor:'#1D9E75',borderRadius:3}
+    ];
+    opts.plugins={legend:{display:true,position:'top',labels:{color:txt,font:{size:10},padding:12}},
+      tooltip:{mode:'index',intersect:false}};
+  } else if (type==='conso') {
+    const base=[9.55,9.80,10.65,10,10,10,10,10,10].map((v,i)=>v*[29,31,30,31,31,28,31,30,20][i]);
+    const ve=conso.map((c,i)=>c-base[i]);
+    datasets=[
+      {label:'Maison (base)',data:base,backgroundColor:'#2D6BE4',borderRadius:3},
+      {label:'Tesla (recharge)',data:ve,backgroundColor:'#F5A623',borderRadius:3}
+    ];
+    opts.scales.x.stacked=true; opts.scales.y.stacked=true;
+    opts.plugins={legend:{display:true,position:'top',labels:{color:txt,font:{size:10},padding:12}},
+      tooltip:{mode:'index',intersect:false}};
+  }
+  window._solarChart = new Chart(ctx, {type:'bar',data:{labels:months,datasets},options:opts});
+}
+
+function switchChart(group, type, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if (group==='solar') buildSolarChart(type);
+}
+
+// ——— SOLAR TABLE ———
+function buildSolarTable() {
+  const tbody = document.getElementById('solarTableBody');
+  const totals = [2290,4207,1980,null,309,2227];
+  months.forEach((m,i)=>{
+    const tac = (ac[i]/prod[i]*100).toFixed(0);
+    tbody.innerHTML += `<tr>
+      <td>${m}</td><td>${prod[i].toFixed(0)}</td><td>${conso[i].toFixed(0)}</td>
+      <td>${ac[i].toFixed(0)}</td><td><span class="pill pill-green">${tac}%</span></td>
+      <td>${inj[i].toFixed(0)}</td><td>${sout[i].toFixed(0)}</td></tr>`;
+  });
+  tbody.innerHTML += `<tr><td><strong>TOTAL</strong></td><td>2 290</td><td>4 207</td>
+    <td>1 980</td><td><span class="pill pill-green">87%</span></td><td>309</td><td>2 227</td></tr>`;
+}
+
+// ——— SIMULATEUR ———
+let simChart = null;
+function updateSim() {
+  const km  = +document.getElementById('slKm').value;
+  const ess = +document.getElementById('slEssence').value;
+  const inf = +document.getElementById('slInflation').value / 100;
+  const pct = +document.getElementById('slMaison').value / 100;
+
+  document.getElementById('vKm').textContent      = km.toLocaleString('fr')+' km';
+  document.getElementById('vEssence').textContent = ess.toFixed(3).replace('.',',')+' €/L';
+  document.getElementById('vInflation').textContent = (inf*100).toFixed(1).replace('.',',')+' %/an';
+  document.getElementById('vMaison').textContent  = Math.round(pct*100)+'%';
+
+  const coutGolf  = km*6/100*ess;
+  const extPct    = 1-pct;
+  const prixMaison = 0.14;
+  const prixExt   = 0.284;
+  const kwhTotal  = km*15/100;
+  const coutTesla = kwhTotal*pct*prixMaison + kwhTotal*extPct*prixExt;
+  const ecoVE     = coutGolf - coutTesla;
+
+  const solaire   = 1423;
+  const total     = solaire + ecoVE;
+
+  const kpis = document.getElementById('simKpis');
+  kpis.innerHTML = `
+    <div class="kpi-card" style="--accent:var(--sun)">
+      <div class="kpi-label">Coût Golf 7/an</div>
+      <div class="kpi-value">${Math.round(coutGolf)}<span class="kpi-unit">€</span></div>
+      <div class="kpi-sub">${km.toLocaleString('fr')} km × 6L × ${ess.toFixed(3).replace('.',',')}€</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--green)">
+      <div class="kpi-label">Coût Tesla/an</div>
+      <div class="kpi-value">${Math.round(coutTesla)}<span class="kpi-unit">€</span></div>
+      <div class="kpi-sub">${Math.round(pct*100)}% maison · ${Math.round(extPct*100)}% externe</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--green)">
+      <div class="kpi-label">Économie VE</div>
+      <div class="kpi-value">${Math.max(0,Math.round(ecoVE))}<span class="kpi-unit">€/an</span></div>
+      <div class="kpi-sub">${(Math.max(0,ecoVE)/km*100).toFixed(1)} c€/km</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--blue)">
+      <div class="kpi-label">Total économies an 1</div>
+      <div class="kpi-value">${Math.round(total)}<span class="kpi-unit">€</span></div>
+      <div class="kpi-sub">solaire + VE</div>
+    </div>`;
+
+  // Projection 20 ans
+  const years = Array.from({length:20},(_,i)=>i+1);
+  const veProj   = years.map(y=>Math.max(0,ecoVE)*(1.025)**y);
+  const solProj  = years.map(y=>solaire*(1+inf)**y);
+  const totProj  = years.map((_,i)=>veProj[i]+solProj[i]);
+
+  if (!window.chartsInited) window.chartsInited={};
+  const ctx = C('simChart');
+  if (simChart) simChart.destroy();
+  simChart = new Chart(ctx, { type:'line',
+    data:{ labels:years.map(y=>`An ${y}`), datasets:[
+      {label:'Solaire',data:solProj,borderColor:'#F5A623',backgroundColor:'rgba(245,166,35,0.12)',fill:true,tension:0.3,borderWidth:2,pointRadius:0},
+      {label:'VE',data:veProj,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.12)',fill:true,tension:0.3,borderWidth:2,pointRadius:0},
+      {label:'Total',data:totProj,borderColor:'#1A1917',backgroundColor:'transparent',tension:0.3,borderWidth:2.5,pointRadius:0}
+    ]},
+    options:{ ...baseOpts(v=>v+'€'),
+      plugins:{legend:{display:true,position:'top',labels:{color:txt,font:{size:10},padding:12}},
+        tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+Math.round(ctx.parsed.y)+'€'}}},
+      scales:{
+        x:{ticks:{color:txt,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{color:grid}},
+        y:{ticks:{color:txt,font:{size:10},callback:v=>v+'€'},grid:{color:grid}} } }
+  });
+}
+
+// Init accueil
+initCharts('accueil');
+</script>
+</body>
+</html>
